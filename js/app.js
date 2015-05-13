@@ -44,6 +44,7 @@
     }
 
     function _processSpecialFields(realObj, field) {
+      console.info(realObj[field]);
       return realObj[field].toJSON();
     }
 
