@@ -77,7 +77,7 @@
         // reached. However, it seems that the flag is only is enabled in 
         // the next iteration so we've always got an undefined file
         if (typeof contact !== 'undefined') {
-          contacts.push(contact);
+          contacts.push(_cloneObject(contact));
         }
 
         if (!cursor.done) {
