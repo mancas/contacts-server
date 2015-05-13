@@ -45,6 +45,21 @@
       return cloned;
     }
 
+    function _cloneContact(mozContact) {
+      var cloned = {};
+      for (var key in mozContact) {
+        if (typeof mozContact[key] === 'object') {
+          cloned[key] = mozContact[key];
+          continue;
+        }
+
+        if (typeof obj[key] !== 'function' || obj[key] === null) {
+          cloned[key] = obj[key];
+        }
+      }
+      return cloned;
+    }
+
     function _processSpecialFields(realObj, field) {
       if (field === 'photo') {
         return realObj[field];
@@ -78,7 +93,7 @@
         // reached. However, it seems that the flag is only is enabled in 
         // the next iteration so we've always got an undefined file
         if (typeof contact !== 'undefined') {
-          contacts.push(_cloneObject(contact));
+          contacts.push(_cloneContact(contact));
         }
 
         if (!cursor.done) {
