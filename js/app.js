@@ -22,18 +22,19 @@
     var request = evt.data.remoteData;
     var requestOp = request.data;
 
-    function FakeMozContact(realMozContact) {
-      for (var key in realMozContact) {
-        if (typeof realMozContact[key] === 'object') {
-          this[key] = realMozContact[key];
+    function _cloneContact(mozContact) {
+      var cloned = {};
+      for (var key in mozContact) {
+        if (typeof mozContact[key] === 'object') {
+          cloned[key] = mozContact[key];
           continue;
         }
 
-        if (typeof realMozContact[key] !== 'function' ||
-          realMozContact[key] === null) {
-            this[key] = realMozContact[key];
+        if (typeof mozContact[key] !== 'function' || mozContact[key] === null) {
+          cloned[key] = mozContact[key];
         }
       }
+      return cloned;
     }
 
     function listenerTemplate(evt) {
@@ -61,13 +62,12 @@
         // reached. However, it seems that the flag is only is enabled in 
         // the next iteration so we've always got an undefined file
         if (typeof contact !== 'undefined') {
-          contacts.push(new FakeMozContact(contact));
+          contacts.push(_cloneContact(contact));
         }
 
         if (!cursor.done) {
           cursor.continue();
         } else {
-          console.info(contacts);
           // Send message
           channel.postMessage({
             remotePortId: remotePortId,
@@ -82,6 +82,21 @@
           data: { id : request.id, error: cursor.error }}
         );
       };
+    } else if (requestOp.operation === 'save') {
+      var fakeContact = requestOp.params[0];
+      var filter = {
+        filterBy: ['id'],
+        filterValue: fakeContact.id,
+        filterOp: 'equals'
+      };
+      var realContact;
+
+      _contacts.find(filter).then(result => {
+        console.info(result.length);
+        realContact = result[0];
+      });
+
+      // Need to update realContact fields
     } else {
       _contacts[requestOp.operation].apply(_contacts, requestOp.params).
         then(result => {
