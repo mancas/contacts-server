@@ -22,8 +22,6 @@
     var request = evt.data.remoteData;
     var requestOp = request.data;
 
-    var specialDateFields = ['anniversary', ];
-
     function _cloneContact(mozContact) {
       var cloned = {};
       for (var key in mozContact) {
@@ -32,7 +30,7 @@
           continue;
         }
 
-        if (typeof mozContact[key] !== 'function' || mozContact[key] === null) {
+        if (typeof mozContact[key] !== 'function') {
           cloned[key] = mozContact[key];
         }
       }
@@ -72,6 +70,13 @@
       );
     }
 
+    function sendResult(result) {
+      channel.postMessage({
+        remotePortId: remotePortId,
+        data: { id : request.id, result: result }}
+      );
+    }
+
     function listenerTemplate(evt) {
       channel.postMessage({
         remotePortId: remotePortId,
@@ -104,10 +109,7 @@
           cursor.continue();
         } else {
           // Send message
-          channel.postMessage({
-            remotePortId: remotePortId,
-            data: { id : request.id, result: contacts }}
-          );
+          sendResult(contacts);
         }
       };
 
@@ -126,19 +128,13 @@
 
       _contacts.find(filter).then(result => {
         if (!result.length) {
-          channel.postMessage({
-            remotePortId: remotePortId,
-            data: { id : request.id, error: {
-              name: 'No contact find'
-            }}}
-          );
+          sendError({ name: 'No contacts found' });
           return;
         }
         // Need to update realContact fields
         var updatedContact = _updateContact(result[0], fakeContact);
-        console.info(updatedContact);
         _contacts.save(updatedContact).then(() => {
-          console.info('UPDATED!!');
+          sendResult(null);
         }).catch(error => {
           sendError(error);
         });
@@ -148,10 +144,7 @@
     } else {
       _contacts[requestOp.operation].apply(_contacts, requestOp.params).
         then(result => {
-          channel.postMessage({
-            remotePortId: remotePortId,
-            data: { id : request.id, result: result }}
-          );
+          sendResult(result);
       }).catch(error => {
         sendError(error);
       });
