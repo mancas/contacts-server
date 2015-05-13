@@ -84,6 +84,7 @@
       };
     } else if (requestOp.operation === 'save') {
       var fakeContact = requestOp.params[0];
+      console.info(fakeContact.id, fakeContact.givenName);
       var filter = {
         filterBy: ['id'],
         filterValue: fakeContact.id,
