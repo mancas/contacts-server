@@ -53,8 +53,8 @@
           continue;
         }
 
-        if (typeof obj[key] !== 'function' || obj[key] === null) {
-          cloned[key] = obj[key];
+        if (typeof mozContact[key] !== 'function' || mozContact[key] === null) {
+          cloned[key] = mozContact[key];
         }
       }
       return cloned;
