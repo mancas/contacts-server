@@ -22,6 +22,8 @@
     var request = evt.data.remoteData;
     var requestOp = request.data;
 
+    var specialDateFields = ['anniversary', ];
+
     function _cloneContact(mozContact) {
       var cloned = {};
       for (var key in mozContact) {
@@ -35,6 +37,39 @@
         }
       }
       return cloned;
+    }
+
+    function _updateContact(realObj, fakeObj) {
+      for (var key in realObj) {
+        if (typeof realObj[key] === 'function') {
+          continue;
+        }
+
+        if (realObj[key] instanceof Date) {
+          if (+realObj[key] !== +fakeObj[key]) {
+            realObj[key] = fakeObj[key];
+          }
+          continue;
+        }
+
+        if (typeof realObj[key] === 'object') {
+          realObj[key] = _updateContact(realObj[key], fakeObj[key]);
+          continue;
+        }
+
+        if (realObj[key] !== fakeObj[key]) {
+          realObj[key] = fakeObj[key];
+        }
+      }
+
+      return realObj;
+    }
+
+    function sendError(error) {
+      channel.postMessage({
+        remotePortId: remotePortId,
+        data: { id : request.id, error: error.name }}
+      );
     }
 
     function listenerTemplate(evt) {
@@ -77,10 +112,7 @@
       };
 
       cursor.onerror = () => {
-        channel.postMessage({
-          remotePortId: remotePortId,
-          data: { id : request.id, error: cursor.error }}
-        );
+        sendError(cursor.error);
       };
     } else if (requestOp.operation === 'save') {
       var fakeContact = requestOp.params[0];
@@ -93,23 +125,35 @@
       var realContact;
 
       _contacts.find(filter).then(result => {
-        console.info(result.length);
-        realContact = result[0];
+        if (!result.length) {
+          channel.postMessage({
+            remotePortId: remotePortId,
+            data: { id : request.id, error: {
+              name: 'No contact find'
+            }}}
+          );
+          return;
+        }
+        // Need to update realContact fields
+        var updatedContact = _updateContact(result[0], fakeContact);
+        console.info(updatedContact);
+        _contacts.save(updatedContact).then(() => {
+          console.info('UPDATED!!');
+        }).catch(error => {
+          sendError(error);
+        });
+      }).catch(error => {
+        sendError(error);
       });
-
-      // Need to update realContact fields
     } else {
       _contacts[requestOp.operation].apply(_contacts, requestOp.params).
         then(result => {
           channel.postMessage({
             remotePortId: remotePortId,
-            data: { id : request.id, result: result}}
+            data: { id : request.id, result: result }}
           );
       }).catch(error => {
-        channel.postMessage({
-          remotePortId: remotePortId,
-          data: { id : request.id, error: error.name}}
-        );
+        sendError(error);
       });
     }
   };
