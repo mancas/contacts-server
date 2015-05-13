@@ -49,7 +49,7 @@
       if (field === 'photo') {
         return realObj[field];
       }
-      return realObj[field].toJSON();
+      return realObj[field] !== null ? realObj[field].toJSON() : null;
     }
 
     function listenerTemplate(evt) {
