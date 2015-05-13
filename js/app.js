@@ -22,19 +22,29 @@
     var request = evt.data.remoteData;
     var requestOp = request.data;
 
+    var specialFields = ['published', 'updated', 'bday'];
+
     function _cloneObject(obj) {
       var cloned = {};
       for (var key in obj) {
-        if ((typeof obj[key] !== 'object' && typeof obj[key] !== 'function') ||
-          obj[key] === null) {
-            cloned[key] = obj[key];
-        } else {
-          if (typeof obj[key] === 'object') {
-            cloned[key] = _cloneObject(obj[key]);
-          }
+        if (typeof obj[key] === 'object') {
+          cloned[key] = _cloneObject(obj[key]);
+          continue;
+        }
+
+        if (typeof obj[key] !== 'function' || obj[key] === null) {
+            if (specialFields.indexOf(key)) {
+              _processSpecialFields(obj, cloned, field);
+            } else {
+              cloned[key] = obj[key];
+            }
         }
       }
       return cloned;
+    }
+
+    function _processSpecialFields(realObj, clonedObj, field) {
+      clonedObj[field] = realObj[field].toJSON();
     }
 
     function listenerTemplate(evt) {
