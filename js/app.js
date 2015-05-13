@@ -69,6 +69,7 @@
           cursor.continue();
         } else {
           console.info(contacts);
+          console.info(_cloneObject(contacts[0]));
           // Send message
           channel.postMessage({
             remotePortId: remotePortId,
