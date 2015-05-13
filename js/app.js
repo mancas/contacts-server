@@ -22,50 +22,18 @@
     var request = evt.data.remoteData;
     var requestOp = request.data;
 
-    var specialFields = ['published', 'updated', 'bday',
-      'anniversary', 'photo'];
-
-    function _cloneObject(obj) {
-      var cloned = {};
-      for (var key in obj) {
-        if (specialFields.indexOf(key) !== -1) {
-          cloned[key] = _processSpecialFields(obj, key);
+    function FakeMozContact(realMozContact) {
+      for (var key in realMozContact) {
+        if (typeof realMozContact[key] === 'object') {
+          this[key] = realMozContact[key];
           continue;
         }
 
-        if (typeof obj[key] === 'object') {
-          cloned[key] = _cloneObject(obj[key]);
-          continue;
-        }
-
-        if (typeof obj[key] !== 'function' || obj[key] === null) {
-          cloned[key] = obj[key];
+        if (typeof realMozContact[key] !== 'function' ||
+          realMozContact[key] === null) {
+            this[key] = realMozContact[key];
         }
       }
-      return cloned;
-    }
-
-    function _cloneContact(mozContact) {
-      var cloned = {};
-      for (var key in mozContact) {
-        if (typeof mozContact[key] === 'object') {
-          cloned[key] = mozContact[key];
-          continue;
-        }
-
-        if (typeof mozContact[key] !== 'function' || mozContact[key] === null) {
-          cloned[key] = mozContact[key];
-        }
-      }
-      return cloned;
-    }
-
-    function _processSpecialFields(realObj, field) {
-      if (field === 'photo') {
-        return realObj[field];
-      }
-      console.info(field, realObj[field]);
-      return realObj[field] !== null ? realObj[field].toJSON() : null;
     }
 
     function listenerTemplate(evt) {
@@ -93,7 +61,7 @@
         // reached. However, it seems that the flag is only is enabled in 
         // the next iteration so we've always got an undefined file
         if (typeof contact !== 'undefined') {
-          contacts.push(_cloneContact(contact));
+          contacts.push(new FakeMozContact(contact));
         }
 
         if (!cursor.done) {
