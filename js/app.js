@@ -28,17 +28,18 @@
     function _cloneObject(obj) {
       var cloned = {};
       for (var key in obj) {
+        if (specialFields.indexOf(key) !== -1) {
+          cloned[key] = _processSpecialFields(obj, key);
+          continue;
+        }
+
         if (typeof obj[key] === 'object') {
           cloned[key] = _cloneObject(obj[key]);
           continue;
         }
 
         if (typeof obj[key] !== 'function' || obj[key] === null) {
-            if (specialFields.indexOf(key) !== -1) {
-              cloned[key] = _processSpecialFields(obj, key);
-            } else {
-              cloned[key] = obj[key];
-            }
+          cloned[key] = obj[key];
         }
       }
       return cloned;
