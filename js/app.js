@@ -49,6 +49,7 @@
       if (field === 'photo') {
         return realObj[field];
       }
+      console.info(field, realObj[field]);
       return realObj[field] !== null ? realObj[field].toJSON() : null;
     }
 
