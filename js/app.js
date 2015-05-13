@@ -34,7 +34,7 @@
 
         if (typeof obj[key] !== 'function' || obj[key] === null) {
             if (specialFields.indexOf(key)) {
-              _processSpecialFields(obj, cloned, field);
+              _processSpecialFields(obj, cloned, key);
             } else {
               cloned[key] = obj[key];
             }
