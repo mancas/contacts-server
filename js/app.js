@@ -22,7 +22,8 @@
     var request = evt.data.remoteData;
     var requestOp = request.data;
 
-    var specialFields = ['published', 'updated', 'bday'];
+    var specialFields = ['published', 'updated', 'bday',
+      'anniversary', 'photo'];
 
     function _cloneObject(obj) {
       var cloned = {};
@@ -33,7 +34,7 @@
         }
 
         if (typeof obj[key] !== 'function' || obj[key] === null) {
-            if (specialFields.indexOf(key)) {
+            if (specialFields.indexOf(key) !== -1) {
               cloned[key] = _processSpecialFields(obj, key);
             } else {
               cloned[key] = obj[key];
@@ -44,7 +45,9 @@
     }
 
     function _processSpecialFields(realObj, field) {
-      console.info(realObj[field]);
+      if (field === 'photo') {
+        return realObj[field];
+      }
       return realObj[field].toJSON();
     }
 
