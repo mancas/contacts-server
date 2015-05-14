@@ -15,7 +15,7 @@
     debug('APP executing register...');
     var origin = document.location.origin;
     navigator.serviceWorker.
-      register('/WebAPI_pf/services/sw.js', {scope: './'}).
+      register('/contacts-server/sw.js', {scope: './'}).
       then(function(reg) {
         debug('APP Registration succeeded. Scope: ' + reg.scope);
         if (reg.installing) {
