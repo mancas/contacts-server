@@ -92,7 +92,7 @@
     if (requestOp.operation === 'oncontactchange') {
       _contacts.oncontactchange = listenerTemplate;
     } else if (requestOp.operation === 'getAll') {
-      var cursor = _contacts.getAll(..requestOp.params);
+      var cursor = _contacts.getAll(...requestOp.params);
       var contacts = [];
 
       cursor.onsuccess = () => {
