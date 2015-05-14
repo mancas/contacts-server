@@ -15,7 +15,7 @@
     debug('APP executing register...');
     var origin = document.location.origin;
     navigator.serviceWorker.
-      register('/contacts-server/sw.js', {scope: './'}).
+      register('/WebAPI_pf/services/sw.js', {scope: './'}).
       then(function(reg) {
         debug('APP Registration succeeded. Scope: ' + reg.scope);
         if (reg.installing) {
@@ -40,6 +40,27 @@
     });
   };
 
+  // Circular objects will cause this to hang
+  var cloneObject = function(obj, recursive) {
+    var cloned = {};
+    for (var key in obj) {
+      if (typeof obj[key] === 'object') {
+        if (!recursive) {
+          cloned[key] = obj[key];
+          continue;
+        }
+
+        cloned[key] = cloneObject(obj[key]);
+        continue;
+      }
+
+      if (typeof obj[key] !== 'function' || obj[key] === null) {
+          cloned[key] = obj[key];
+      }
+    }
+    return cloned;
+  };
+
 if ('serviceWorker' in navigator) {
   window.ServiceHelper = {
     register: function(processSWRequest) {
@@ -51,7 +72,8 @@ if ('serviceWorker' in navigator) {
         sw.active && sw.active.postMessage({}, [mc.port2]);
       });
     },
-    unregister: unregister
+    unregister: unregister,
+    cloneObject: cloneObject
   };
 } else {
   debug('APP navigator does not have ServiceWorker');

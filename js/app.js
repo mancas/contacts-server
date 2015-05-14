@@ -9,7 +9,6 @@
   // be accessed from outside the main thread. So basically everything has to go
   // down to the SW thread, then back up here for processing, then back down to
   // be sent to the client. Yay us!
-  var _observers = {};
 
   var processSWRequest = function(channel, evt) {
 
@@ -93,7 +92,7 @@
     if (requestOp.operation === 'oncontactchange') {
       _contacts.oncontactchange = listenerTemplate;
     } else if (requestOp.operation === 'getAll') {
-      var cursor = _contacts.getAll.apply(_contacts, requestOp.params);
+      var cursor = _contacts.getAll(..requestOp.params);
       var contacts = [];
 
       cursor.onsuccess = () => {
@@ -102,7 +101,7 @@
         // reached. However, it seems that the flag is only is enabled in 
         // the next iteration so we've always got an undefined file
         if (typeof contact !== 'undefined') {
-          contacts.push(_cloneContact(contact));
+          contacts.push(window.ServiceHelper.cloneObject(contact));
         }
 
         if (!cursor.done) {
@@ -118,7 +117,6 @@
       };
     } else if (requestOp.operation === 'save') {
       var fakeContact = requestOp.params[0];
-      console.info(fakeContact.id, fakeContact.givenName);
       var filter = {
         filterBy: ['id'],
         filterValue: fakeContact.id,
@@ -133,21 +131,11 @@
         }
         // Need to update realContact fields
         var updatedContact = _updateContact(result[0], fakeContact);
-        _contacts.save(updatedContact).then(() => {
-          sendResult(null);
-        }).catch(error => {
-          sendError(error);
-        });
-      }).catch(error => {
-        sendError(error);
-      });
+        _contacts.save(updatedContact).then(sendResult).catch(sendError);
+      }).catch(sendError);
     } else {
-      _contacts[requestOp.operation].apply(_contacts, requestOp.params).
-        then(result => {
-          sendResult(result);
-      }).catch(error => {
-        sendError(error);
-      });
+      _contacts[requestOp.operation](...requestOp.params).
+        then(sendResult).catch(sendError);
     }
   };
 
