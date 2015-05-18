@@ -134,7 +134,7 @@
         _contacts.save(updatedContact).then(sendResult).catch(sendError);
       }).catch(sendError);
     } else {
-      var params = requestOp.params ? : requestOp.params : [];
+      var params = requestOp.params ? requestOp.params : [];
       _contacts[requestOp.operation](...params).then(sendResult).
         catch(sendError);
     }
