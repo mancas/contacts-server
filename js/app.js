@@ -5,82 +5,57 @@
     console.log('MANU ContactsService -*-:' + str);
   }
 
-  // Ok, this kinda sucks because most APIs (and settings is one of them) cannot
-  // be accessed from outside the main thread. So basically everything has to go
-  // down to the SW thread, then back up here for processing, then back down to
-  // be sent to the client. Yay us!
+  var _contacts = navigator.mozContacts;
 
-  var processSWRequest = function(channel, evt) {
-
-    var _contacts = navigator.mozContacts;
-    // We can get:
-    // * oncontactchange
-    // * getAll
-    // * methodName
-    var remotePortId = evt.data.remotePortId;
-    var request = evt.data.remoteData;
-    var requestOp = request.data;
-
-    function _cloneContact(mozContact) {
-      var cloned = {};
-      for (var key in mozContact) {
-        if (typeof mozContact[key] === 'object') {
-          cloned[key] = mozContact[key];
-          continue;
-        }
-
-        if (typeof mozContact[key] !== 'function') {
-          cloned[key] = mozContact[key];
-        }
+  function _updateContact(realObj, fakeObj) {
+    for (var key in realObj) {
+      if (typeof realObj[key] === 'function') {
+        continue;
       }
-      return cloned;
-    }
 
-    function _updateContact(realObj, fakeObj) {
-      for (var key in realObj) {
-        if (typeof realObj[key] === 'function') {
-          continue;
-        }
-
-        if (realObj[key] instanceof Date) {
-          if (+realObj[key] !== +fakeObj[key]) {
-            realObj[key] = fakeObj[key];
-          }
-          continue;
-        }
-
-        if (typeof realObj[key] === 'object') {
-          realObj[key] = _updateContact(realObj[key], fakeObj[key]);
-          continue;
-        }
-
-        if (realObj[key] !== fakeObj[key]) {
+      if (realObj[key] instanceof Date) {
+        if (+realObj[key] !== +fakeObj[key]) {
           realObj[key] = fakeObj[key];
         }
+        continue;
       }
 
-      return realObj;
+      if (typeof realObj[key] === 'object') {
+        realObj[key] = _updateContact(realObj[key], fakeObj[key]);
+        continue;
+      }
+
+      if (realObj[key] !== fakeObj[key]) {
+        realObj[key] = fakeObj[key];
+      }
     }
 
-    function sendError(error) {
-      channel.postMessage({
-        remotePortId: remotePortId,
-        data: { id : request.id, error: error.name }}
-      );
-    }
+    return realObj;
+  }
 
-    function sendResult(result) {
+  function buildDOMRequestAnswer(operation, channel, request) {
+    debug('Building call --> ' + JSON.stringify(request));
+    var remotePortId = request.remotePortId;
+    var reqId = request.remoteData.id;
+    var opData = request.remoteData.data.params || [];
+
+    _contacts[operation](...opData).then(result => {
       channel.postMessage({
         remotePortId: remotePortId,
-        data: { id : request.id, result: result }}
-      );
-    }
+        data: { id : reqId, result: result }
+      });
+    }).catch(sendError.bind(channel, request));
+  }
+
+  function setHandler(channel, request) {
+    var remotePortId = request.remotePortId;
+    var reqId = request.remoteData.id;
 
     function listenerTemplate(evt) {
       channel.postMessage({
         remotePortId: remotePortId,
         data: {
-          id: request.id,
+          id: reqId,
           event: {
             contactID: evt.contactID,
             reason: evt.reason
@@ -89,33 +64,58 @@
       });
     }
 
-    if (requestOp.operation === 'oncontactchange') {
-      _contacts.oncontactchange = listenerTemplate;
-    } else if (requestOp.operation === 'getAll') {
-      var cursor = _contacts.getAll(...requestOp.params);
-      var contacts = [];
+    _contacts.oncontactchange = listenerTemplate;
+  }
 
-      cursor.onsuccess = () => {
-        var contact = cursor.result;
-        // 'cursor.done' flag should be activated when the last file is
-        // reached. However, it seems that the flag is only is enabled in 
-        // the next iteration so we've always got an undefined file
-        if (typeof contact !== 'undefined') {
-          contacts.push(window.ServiceHelper.cloneObject(contact));
-        }
+  function buildDOMCursorAnswer(channel, request) {
+    var remotePortId = request.remotePortId;
+    // Params for the local operation:
+    var opData = request.remoteData.data.params || [];
+    var reqId = request.remoteData.id;
 
-        if (!cursor.done) {
-          cursor.continue();
-        } else {
-          // Send message
-          sendResult(contacts);
-        }
-      };
+    var cursor = _contacts.getAll(...opData);
+    var contacts = [];
 
-      cursor.onerror = () => {
-        sendError(cursor.error);
-      };
-    } else if (requestOp.operation === 'save') {
+    cursor.onsuccess = () => {
+      if (!cursor.done) {
+        contacts.push(window.ServiceHelper.cloneObject(cursor.result));
+        cursor.continue();
+      } else {
+        // Send message
+        channel.postMessage({
+          remotePortId: remotePortId,
+          data: { id : reqId, result: contacts }
+        });
+      }
+    };
+
+    cursor.onerror = () => {
+      sendError(channel, request, cursor.error);
+    };
+  }
+
+  function sendError(channel, request, error) {
+    var remotePortId = request.remotePortId;
+    var reqId = request.remoteData.id;
+
+    channel.postMessage({
+      remotePortId: remotePortId,
+      data: {
+        id : reqId,
+        error: window.ServiceHelper.cloneObject(error)
+      }
+    });
+  }
+
+  var _operations = {
+    getAll: buildDOMCursorAnswer.bind(this),
+
+    save: function(channel, request) {
+      var remotePortId = request.remotePortId;
+      // Params for the local operation:
+      var opData = request.remoteData.data.params || [];
+      var reqId = request.remoteData.id;
+
       var fakeContact = requestOp.params[0];
       var filter = {
         filterBy: ['id'],
@@ -126,17 +126,47 @@
 
       _contacts.find(filter).then(result => {
         if (!result.length) {
-          sendError({ name: 'No contacts found' });
+          sendError(channel, request, {name: 'No contacts found'});
           return;
         }
         // Need to update realContact fields
         var updatedContact = _updateContact(result[0], fakeContact);
-        _contacts.save(updatedContact).then(sendResult).catch(sendError);
-      }).catch(sendError);
+        _contacts.save(updatedContact).then(result => {
+          channel.postMessage({
+            remotePortId: remotePortId,
+            data: { id : reqId, result: result }
+          });
+        }).catch(sendError.bind(channel, request));
+      }).catch(sendError.bind(channel, request));
+    },
+
+    oncontactchange: setHandler.bind(this)
+  };
+
+  ['clear', 'find', 'getCount', 'getRevision', 'remove'].forEach(method => {
+    _operations[method] = buildDOMRequestAnswer.bind(undefined, method);
+  });
+
+  // Ok, this kinda sucks because most APIs (and settings is one of them) cannot
+  // be accessed from outside the main thread. So basically everything has to go
+  // down to the SW thread, then back up here for processing, then back down to
+  // be sent to the client. Yay us!
+
+  var processSWRequest = function(channel, evt) {
+    // We can get:
+    // * oncontactchange
+    // * getAll
+    // * methodName
+    var request = evt.data.remoteData;
+    var requestOp = request.data.operation;
+
+    debug('processSWRequest --> processing a msg:' +
+          (evt.data ? JSON.stringify(evt.data): 'msg without data'));
+    if (requestOp in _operations) {
+      _operations[requestOp] &&
+        _operations[requestOp](channel, evt.data);
     } else {
-      var params = requestOp.params ? requestOp.params : [];
-      _contacts[requestOp.operation](...params).then(sendResult).
-        catch(sendError);
+      console.error('Contacts service unknown operation:' + requestOp);
     }
   };
 
