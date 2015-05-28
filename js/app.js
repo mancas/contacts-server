@@ -116,7 +116,7 @@
       var opData = request.remoteData.data.params || [];
       var reqId = request.remoteData.id;
 
-      var fakeContact = requestOp.params[0];
+      var fakeContact = opData[0];
       var filter = {
         filterBy: ['id'],
         filterValue: fakeContact.id,
